@@ -10,7 +10,7 @@ class Geometry {
 	 * @param {module:LinearAlgebra.Vector[]} positions An array containing the position of each vertex in a mesh.
 	 * @param {boolean} normalizePositions flag to indicate whether positions should be normalized. Default value is true.
 	 * @property {module:Core.Mesh} mesh The mesh this class describes the geometry of.
-	 * @property {module:LinearAlgebra.Vector[]} positions A dictionary mapping each vertex to a normalized position.
+	 * @property {Object} positions A dictionary mapping each vertex to a normalized position.
 	 */
 	constructor(mesh, positions, normalizePositions = true) {
 		this.mesh = mesh;
@@ -514,9 +514,24 @@ class Geometry {
 	 * @returns {module:LinearAlgebra.ComplexSparseMatrix}
 	 */
 	complexLaplaceMatrix(vertexIndex) {
-		// TODO
+		let V = this.mesh.vertices.length;
+		let T = new ComplexTriplet(V, V);
+		for (let v of this.mesh.vertices) {
+			let i = vertexIndex[v];
+			let sum = 1e-8;
 
-		return ComplexSparseMatrix.identity(1, 1); // placeholder
+			for (let h of v.adjacentHalfedges()) {
+				let j = vertexIndex[h.twin.vertex];
+				let weight = (this.cotan(h) + this.cotan(h.twin)) / 2;
+				sum += weight;
+
+				T.addEntry(new Complex(-weight), i, j);
+			}
+
+			T.addEntry(new Complex(sum), i, i);
+		}
+
+		return ComplexSparseMatrix.fromTriplet(T);
 	}
 }
 

@@ -21,9 +21,26 @@ class SpectralConformalParameterization {
 	 * @returns {module:LinearAlgebra.ComplexSparseMatrix}
 	 */
 	buildConformalEnergy() {
-		// TODO
+		// build the dirichlet energy matrix
+		let ED = this.geometry.complexLaplaceMatrix(this.vertexIndex);
+		ED.scaleBy(new Complex(0.5));
 
-		return ComplexSparseMatrix.identity(1, 1); // placeholder
+		// build the area term
+		let ii = new Complex(0, 1);
+		let T = new ComplexTriplet(ED.nRows(), ED.nCols());
+		for (let b of this.geometry.mesh.boundaries) {
+			for (let h of b.adjacentHalfedges()) {
+				let i = this.vertexIndex[h.vertex];
+				let j = this.vertexIndex[h.twin.vertex];
+
+				T.addEntry(ii.timesReal(0.25), i, j);
+				T.addEntry(ii.timesReal(-0.25), j, i);
+			}
+		}
+
+		let A = ComplexSparseMatrix.fromTriplet(T);
+
+		return ED.minus(A);
 	}
 
 	/**
@@ -32,13 +49,26 @@ class SpectralConformalParameterization {
 	 * @returns {Object} A dictionary mapping each vertex to a vector of planar coordinates.
 	 */
 	flatten() {
-		// TODO
 		let vertices = this.geometry.mesh.vertices;
-		let flattening = this.geometry.positions; // placeholder
+		let flattening = {};
+
+		// build the conformal energy matrix
+		let EC = this.buildConformalEnergy();
+
+		// find the eigenvector corresponding to the smallest eigenvalue of EC
+		let z = Solvers.solveInversePowerMethod(EC);
+
+		// assign flattening
+		for (let v of vertices) {
+			let i = this.vertexIndex[v];
+			let zi = z.get(i, 0);
+
+			flattening[v] = new Vector(zi.re, zi.im);
+		}
 
 		// normalize flattening
 		normalize(flattening, vertices);
 
-		return undefined; // placeholder, return flattening instead
+		return flattening;
 	}
 }
